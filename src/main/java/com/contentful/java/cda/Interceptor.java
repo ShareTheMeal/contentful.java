@@ -17,6 +17,6 @@ final class Interceptor implements RequestInterceptor {
   }
 
   private static String createUserAgent() {
-    return String.format("contentful.java/%s", Util.getProperty("version.name"));
+    return String.format("contentful.java/%s", Properties.VERSION_NAME);
   }
 }

@@ -71,7 +71,7 @@ public class ClientTest extends BaseTest {
   @Test
   @Enqueue
   public void userAgentHeader() throws Exception {
-    String versionName = Util.getProperty("version.name");
+    String versionName = Properties.VERSION_NAME;
     assertThat(versionName).isNotEmpty();
     client.fetchSpace();
     RecordedRequest request = server.takeRequest();
