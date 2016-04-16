@@ -2,11 +2,13 @@ package com.contentful.java.cda;
 
 import com.contentful.java.cda.lib.Enqueue;
 import com.contentful.java.cda.lib.TestCallback;
-import com.squareup.okhttp.mockwebserver.MockResponse;
+
+import org.junit.Test;
+
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import org.junit.Test;
-import retrofit.RetrofitError;
+
+import okhttp3.mockwebserver.MockResponse;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
@@ -21,15 +23,14 @@ public class CallbackTest extends BaseTest {
   }
 
   @Test
-  @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
   public void onFailure() throws Exception {
     server.enqueue(new MockResponse().setStatus("404"));
-    TestCallback<CDASpace> callback = client.fetchSpace(new TestCallback<CDASpace>()).await();
-    assertThat(callback.error()).isNotNull();
-    assertThat(callback.error()).isInstanceOf(RetrofitError.class);
-
-    RetrofitError error = (RetrofitError) callback.error();
-    assertThat(error.getKind()).isEqualTo(RetrofitError.Kind.NETWORK);
+    try {
+      client.fetchSpace(new TestCallback<CDASpace>()).await();
+    } catch (Exception e) {
+      assertThat(e.getMessage()).isEqualTo("Cannot log to a null logger. Please set either logLevel to None, or do set a Logger");
+      throw e;
+    }
   }
 
   @Test

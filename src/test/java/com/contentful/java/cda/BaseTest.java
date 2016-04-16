@@ -2,8 +2,6 @@ package com.contentful.java.cda;
 
 import com.contentful.java.cda.lib.EnqueueResponseRule;
 import com.contentful.java.cda.lib.TestCallback;
-import com.squareup.okhttp.mockwebserver.MockResponse;
-import com.squareup.okhttp.mockwebserver.MockWebServer;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -15,10 +13,16 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+
 import static com.contentful.java.cda.Util.checkNotNull;
 import static com.google.common.truth.Truth.assertThat;
 
 public class BaseTest {
+  public static final String DEFAULT_TOKEN = "test_token";
+  public static final String DEFAULT_SPACE = "test_space";
+
   CDAClient client;
 
   MockWebServer server;
@@ -46,7 +50,6 @@ public class BaseTest {
 
   protected CDAClient createClient() {
     return createBuilder()
-        .setEndpoint(serverUrl())
         .build();
   }
 
@@ -56,15 +59,15 @@ public class BaseTest {
         .build();
   }
 
-  private CDAClient.Builder createBuilder() {
+  protected CDAClient.Builder createBuilder() {
     return CDAClient.builder()
-        .setSpace("space")
-        .setToken("token");
+        .setSpace(DEFAULT_SPACE)
+        .setToken(DEFAULT_TOKEN)
+        .setEndpoint(serverUrl());
   }
 
   protected String serverUrl() {
-    URL url = server.getUrl("/");
-    return "http://" + url.getHost() + ":" + url.getPort();
+    return "http://" + server.getHostName() + ":" + server.getPort();
   }
 
   protected MockWebServer createServer() {
