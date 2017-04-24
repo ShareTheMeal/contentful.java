@@ -2,8 +2,39 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## Version [7.0.1][unreleased] - (in development)
-- stay tuned
+## Version [7.5.1][unreleased] - (in development)
+- W.I.P. stay tuned...
+
+## Version [7.5.0] - (2017-03-30)
+- Added: Retrieve default call.factory from client builder.
+- Fixed: Close body in error response interceptor.
+- Fixed: ContentTypes are not required to query for Assets ant ContentTypes.
+
+## Version [7.4.0] - (2017-02-13)
+- Added: `useTLS12()` for creating a client, enforcing usage of TLS 1.2
+- Added: More convenient way of querying: `withContentType`, `select`, `orderBy`,
+    `reverseOrderBy`, `limit`, `skip`, `include` and `where` with `IsEqualTo`, `IsNotEqualTo`,
+    `HasOneOf`, `HasNoneOf`, `HasAllOf`, `IsLessThan`, `IsLessThanOrEqualTo`, `IsGreaterThan`,
+    `IsGreaterThanOrEqualTo`, `Exists`, `IsEarlierThan`, `IsEarlierOrAt`, `IsLaterThan`,
+    `IsLaterOrAt`, `Matches`, `IsCloseTo`, `IsWithinBoundingBoxOf`, `IsWithinCircleOf`
+- Changed: Remove all warnings from JavaDoc
+
+## Version [7.3.0] - (2017-01-04)
+- Added: Fallback locales.
+- Added: Support for validations.
+- Added: Add rate limit headers to http exceptions.
+
+## Version [7.2.0] - (2016-11-10)
+- Added: Limited sync support for Preview endpoint (Only `inital=true!`)
+
+## Version [7.1.0] - (2016-11-01)
+- Added: Clear java cache through `CMAClient`
+
+## Version [7.0.2] - (2016-07-08)
+- Fixed: requesting a sort order now gets respected by transformations
+
+## Version [7.0.1] - (2016-05-02)
+- Changed: Updating proguard rules sample file to reflect dependency changes
 
 ## Version [7.0.0] - (2016-04-15)
 - Fixed: Integration tests don't expect wrong entries
@@ -135,8 +166,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Version 1.0.0 - 2014-08-13
 Initial release.
 
-[unreleased]: https://github.com/contentful/contentful.java/compare/java-sdk-7.0.0...HEAD
-[7.0.0]: https://github.com/contentful/contentful.java/compare/java-sdk-6.1.2...java-sdk-7.0.0
+[unreleased]: https://github.com/contentful/contentful.java/compare/java-sdk-7.4.1...HEAD
+[7.4.0]: https://github.com/contentful/contentful.java/compare/java-sdk-7.3.0...java-sdk-7.4.0
+[7.3.0]: https://github.com/contentful/contentful.java/compare/java-sdk-7.2.0...java-sdk-7.3.0
+[7.2.0]: https://github.com/contentful/contentful.java/compare/java-sdk-7.1.0...java-sdk-7.2.0
+[7.1.0]: https://github.com/contentful/contentful.java/compare/java-sdk-7.0.2...java-sdk-7.1.0
+[7.0.2]: https://github.com/contentful/contentful.java/compare/java-sdk-7.0.1...java-sdk-7.0.2
+[7.0.1]: https://github.com/contentful/contentful.java/compare/java-sdk-7.0.0...java-sdk-7.0.1
+[7.0.0]: https://github.com/contentful/contentful.java/compare/java-sdk-7.1.2...java-sdk-7.0.0
 [6.1.2]: https://github.com/contentful/contentful.java/compare/java-sdk-6.1.1...java-sdk-6.1.2
 [6.1.1]: https://github.com/contentful/contentful.java/compare/java-sdk-6.1.0...java-sdk-6.1.1
 [6.1.0]: https://github.com/contentful/contentful.java/compare/java-sdk-6.0.0...java-sdk-6.1.0

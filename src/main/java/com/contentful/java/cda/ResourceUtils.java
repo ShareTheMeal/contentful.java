@@ -150,7 +150,7 @@ final class ResourceUtils {
   }
 
   static CDAResource findLinkedResource(ArrayResource array, CDAType linkType,
-      String id) {
+                                        String id) {
     if (ASSET.equals(linkType)) {
       return array.assets().get(id);
     } else if (ENTRY.equals(linkType)) {
@@ -160,7 +160,7 @@ final class ResourceUtils {
   }
 
   static void mapResources(Collection<? extends CDAResource> resources,
-      Map<String, CDAAsset> assets, Map<String, CDAEntry> entries) {
+                           Map<String, CDAAsset> assets, Map<String, CDAEntry> entries) {
     for (CDAResource resource : resources) {
       CDAType type = resource.type();
       String id = resource.id();
@@ -222,6 +222,7 @@ final class ResourceUtils {
 
   static void localize(LocalizedResource resource, CDASpace space) {
     resource.setDefaultLocale(space.defaultLocale().code());
+    resource.setFallbackLocaleMap(getFallbackLocaleMap(space));
     String resourceLocale = resource.getAttribute("locale");
     if (resourceLocale == null) {
       // sync
@@ -233,18 +234,39 @@ final class ResourceUtils {
     }
   }
 
+  private static Map<String, String> getFallbackLocaleMap(CDASpace space) {
+    final Map<String, String> fallbackLocales = new HashMap<String, String>(space.locales().size());
+
+    for (final CDALocale locale : space.locales()) {
+      final String fallback = locale.fallbackLocaleCode();
+      if (fallback != null && !"".equals(fallback)) {
+        fallbackLocales.put(locale.code, fallback);
+      }
+    }
+
+    return fallbackLocales;
+  }
+
   static void normalizeFields(LocalizedResource resource) {
     Map<String, Object> fields = new HashMap<String, Object>();
     for (String key : resource.fields.keySet()) {
       Object value = resource.fields.get(key);
       if (value == null) {
         continue;
+      } else if (resourceContainsLocaleMap(resource, value)) {
+        fields.put(key, value);
+      } else {
+        Map<String, Object> map = new HashMap<String, Object>();
+        map.put(resource.locale(), value);
+        fields.put(key, map);
       }
-      Map<String, Object> map = new HashMap<String, Object>();
-      map.put(resource.locale(), value);
-      fields.put(key, map);
     }
     resource.fields = fields;
+  }
+
+  private static boolean resourceContainsLocaleMap(LocalizedResource resource, Object value) {
+    return value instanceof Map
+        && ((Map) value).containsKey(resource.locale);
   }
 
   static void setRawFields(ArrayResource array) {

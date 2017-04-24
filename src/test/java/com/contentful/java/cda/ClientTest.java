@@ -3,6 +3,7 @@ package com.contentful.java.cda;
 import com.contentful.java.cda.interceptor.AuthorizationHeaderInterceptor;
 import com.contentful.java.cda.interceptor.UserAgentHeaderInterceptor;
 import com.contentful.java.cda.lib.Enqueue;
+import com.contentful.java.cda.lib.EnqueueResponse;
 
 import org.junit.Test;
 
@@ -103,7 +104,7 @@ public class ClientTest extends BaseTest {
     } catch (RuntimeException e) {
       assertThat(e.getCause()).isInstanceOf(IOException.class);
       assertThat(e.getCause()).hasMessage(ERROR_MESSAGE);
-      throw(e);
+      throw (e);
     }
   }
 
@@ -209,6 +210,69 @@ public class ClientTest extends BaseTest {
     verify(logMock, times(6)).log(anyString());
   }
 
+  @Test
+  @Enqueue("demo/content_types_cat.json")
+  public void usingTLS12DoesNotThrow() {
+    final CDAClient client = createBuilder()
+        .useTLS12()
+        .build();
+
+    assertThat(client).isNotNull();
+
+    client.fetch(CDAEntry.class).all();
+  }
+
+  @Test(expected = CDAHttpException.class)
+  @Enqueue(
+      defaults = {},
+      complex = {@EnqueueResponse(fileName = "errors/invalid_query.json", code = 404)}
+  )
+  public void sendingInvalidQueriesThrowsMeaningfulException() throws Throwable {
+
+    final CDAClient client = createClient();
+
+    try {
+      client.fetch(CDAEntry.class).where("not", "existing").all();
+    } catch (CDAHttpException cdaException) {
+      assertThat(cdaException.responseCode()).isEqualTo(404);
+      assertThat(cdaException.responseMessage()).isEqualTo("Client Error");
+      throw cdaException;
+    }
+  }
+
+  @Test(expected = CDAHttpException.class)
+  @Enqueue(
+      defaults = {},
+      complex = {@EnqueueResponse(
+          fileName = "errors/ratelimit.json",
+          code = 429,
+          headers = {
+              "X-Contentful-RateLimit-Hour-Limit: 1",
+              "X-Contentful-RateLimit-Hour-Remaining: 20",
+              "X-Contentful-RateLimit-Second-Limit: 40",
+              "X-Contentful-RateLimit-Second-Remaining: 60",
+              "X-Contentful-RateLimit-Reset: 80"
+          }
+      )}
+  )
+  public void requestingWhileRateLimitedThrows() throws Throwable {
+
+    final CDAClient client = createClient();
+
+    try {
+      client.fetch(CDAEntry.class).all();
+    } catch (CDAHttpException cdaException) {
+      assertThat(cdaException.responseCode()).isEqualTo(429);
+
+      assertThat(cdaException.rateLimitHourLimit()).isEqualTo(1);
+      assertThat(cdaException.rateLimitHourRemaining()).isEqualTo(20);
+      assertThat(cdaException.rateLimitSecondLimit()).isEqualTo(40);
+      assertThat(cdaException.rateLimitSecondRemaining()).isEqualTo(60);
+      assertThat(cdaException.rateLimitReset()).isEqualTo(80);
+      throw cdaException;
+    }
+  }
+
   @Test(expected = IllegalArgumentException.class)
   @Enqueue("demo/content_types_cat.json")
   public void settingNoLoggerAndAnyLogLevelResultsException() {
@@ -222,5 +286,43 @@ public class ClientTest extends BaseTest {
       assertThat(e.getMessage()).isEqualTo("Cannot log to a null logger. Please set either logLevel to None, or do set a Logger");
       throw e;
     }
+  }
+
+  @Test
+  @Enqueue("demo/content_types_cat.json")
+  public void clearingTheCacheClearsTheCache() {
+    client.fetch(CDAContentType.class).all();
+    assertThat(client.cache.types()).isNotNull();
+    assertThat(client.cache.space()).isNotNull();
+
+    client.clearCache();
+    assertThat(client.cache.types()).isNull();
+    assertThat(client.cache.space()).isNull();
+  }
+
+  static class InterceptingInterceptor implements Interceptor {
+    public boolean hit = false;
+
+    @Override public Response intercept(Chain chain) throws IOException {
+      hit = true;
+      return chain.proceed(chain.request());
+    }
+  }
+
+  @Test @Enqueue
+  public void customCallFactoryCanUseDefault() throws Exception {
+
+    final CDAClient.Builder builder = createBuilder();
+
+    final OkHttpClient.Builder callFactoryBuilder = builder.defaultCallFactoryBuilder();
+    final InterceptingInterceptor interceptor = new InterceptingInterceptor();
+    callFactoryBuilder.addInterceptor(interceptor);
+
+    builder
+        .setCallFactory(callFactoryBuilder.build())
+        .build()
+        .fetchSpace();
+
+    assertThat(interceptor.hit).isTrue();
   }
 }

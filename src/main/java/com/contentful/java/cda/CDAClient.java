@@ -44,13 +44,20 @@ public class CDAClient {
   final boolean preview;
 
   private CDAClient(Builder builder) {
+    this(new Cache(),
+        Platform.get().callbackExecutor(),
+        createService(builder),
+        builder);
     validate(builder);
+  }
+
+  CDAClient(Cache cache, Executor executor, CDAService service, Builder builder) {
+    this.cache = cache;
+    this.callbackExecutor = executor;
+    this.service = service;
     this.spaceId = builder.space;
     this.token = builder.token;
     this.preview = builder.preview;
-    this.service = createService(builder);
-    this.cache = new Cache();
-    this.callbackExecutor = Platform.get().callbackExecutor();
   }
 
   private void validate(Builder builder) {
@@ -60,7 +67,7 @@ public class CDAClient {
     }
   }
 
-  private CDAService createService(Builder clientBuilder) {
+  private static CDAService createService(Builder clientBuilder) {
     String endpoint = clientBuilder.endpoint;
     if (endpoint == null) {
       endpoint = ENDPOINT_PROD;
@@ -69,47 +76,10 @@ public class CDAClient {
     Retrofit.Builder retrofitBuilder = new Retrofit.Builder()
         .addConverterFactory(GsonConverterFactory.create(ResourceFactory.GSON))
         .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
-        .callFactory(createOrGetCallFactory(clientBuilder))
+        .callFactory(clientBuilder.createOrGetCallFactory(clientBuilder))
         .baseUrl(endpoint);
 
     return retrofitBuilder.build().create(CDAService.class);
-  }
-
-  private Call.Factory createOrGetCallFactory(Builder clientBuilder) {
-    final Call.Factory callFactory;
-
-    if (clientBuilder.callFactory == null) {
-      OkHttpClient.Builder okBuilder = new OkHttpClient.Builder()
-          .addInterceptor(new AuthorizationHeaderInterceptor(clientBuilder.token))
-          .addInterceptor(new UserAgentHeaderInterceptor(createUserAgent()))
-          .addInterceptor(new ErrorInterceptor());
-
-      okBuilder = setLogger(okBuilder, clientBuilder);
-
-      callFactory = okBuilder.build();
-    } else {
-      callFactory = clientBuilder.callFactory;
-    }
-
-    return callFactory;
-  }
-
-  private OkHttpClient.Builder setLogger(OkHttpClient.Builder okBuilder, Builder clientBuilder) {
-    if (clientBuilder.logger != null) {
-      switch (clientBuilder.logLevel) {
-        case NONE:
-          break;
-        case BASIC:
-          return okBuilder.addInterceptor(new LogInterceptor(clientBuilder.logger));
-        case FULL:
-          return okBuilder.addNetworkInterceptor(new LogInterceptor(clientBuilder.logger));
-      }
-    } else {
-      if (clientBuilder.logLevel != Logger.Level.NONE) {
-        throw new IllegalArgumentException("Cannot log to a null logger. Please set either logLevel to None, or do set a Logger");
-      }
-    }
-    return okBuilder;
   }
 
   /**
@@ -140,7 +110,6 @@ public class CDAClient {
    * Returns a {@link SyncQuery} for initial synchronization via the Sync API.
    *
    * @return query instance.
-   * @throws UnsupportedOperationException if tried to sync with a preview token
    */
   public SyncQuery sync() {
     return sync(null, null);
@@ -150,9 +119,10 @@ public class CDAClient {
    * Returns a {@link SyncQuery} for synchronization with the provided {@code syncToken} via
    * the Sync API.
    *
+   * If called from a {@link #preview} client, this will always do an initial sync.
+   *
    * @param syncToken sync token.
    * @return query instance.
-   * @throws UnsupportedOperationException if tried to sync with a preview token
    */
   public SyncQuery sync(String syncToken) {
     return sync(syncToken, null);
@@ -161,9 +131,10 @@ public class CDAClient {
   /**
    * Returns a {@link SyncQuery} for synchronization with an existing space.
    *
+   * If called from a {@link #preview} client, this will always do an initial sync.
+   *
    * @param synchronizedSpace space to sync.
    * @return query instance.
-   * @throws UnsupportedOperationException if tried to sync with a preview token
    */
   public SyncQuery sync(SynchronizedSpace synchronizedSpace) {
     return sync(null, synchronizedSpace);
@@ -171,7 +142,8 @@ public class CDAClient {
 
   private SyncQuery sync(String syncToken, SynchronizedSpace synchronizedSpace) {
     if (preview) {
-      throw new UnsupportedOperationException("Syncing using a preview token is not supported. Please use a production token.");
+      syncToken = null;
+      synchronizedSpace = null;
     }
 
     SyncQuery.Builder builder = SyncQuery.builder().setClient(this);
@@ -185,14 +157,18 @@ public class CDAClient {
   }
 
   /**
-   * Fetches the space for this client (synchronously).
+   * @return the space for this client (synchronously).
    */
   public CDASpace fetchSpace() {
     return observeSpace().toBlocking().first();
   }
 
   /**
-   * Fetches the space for this client (asynchronously).
+   * Asynchronously fetch the space.
+   *
+   * @param <C> the type of the callback to be used.
+   * @param callback the value of the callback to be called back.
+   * @return the space for this client (asynchronously).
    */
   @SuppressWarnings("unchecked")
   public <C extends CDACallback<CDASpace>> C fetchSpace(C callback) {
@@ -200,7 +176,7 @@ public class CDAClient {
   }
 
   /**
-   * Returns an {@link Observable} that fetches the space for this client.
+   * @return an {@link Observable} that fetches the space for this client.
    */
   public Observable<CDASpace> observeSpace() {
     return cacheSpace(true);
@@ -271,7 +247,17 @@ public class CDAClient {
     return Observable.just(contentType);
   }
 
-  String createUserAgent() {
+  /**
+   * Clear the java internal cache.
+   *
+   * @return this client for chaining.
+   */
+  public CDAClient clearCache() {
+    cache.clear();
+    return this;
+  }
+
+  static String createUserAgent() {
     final Properties properties = System.getProperties();
     return String.format("contentful.java/%s(%s %s) %s/%s",
         Util.getProperty("version.name"),
@@ -283,7 +269,7 @@ public class CDAClient {
   }
 
   /**
-   * Returns a {@link CDAClient} builder.
+   * @return a {@link CDAClient} builder.
    */
   public static Builder builder() {
     return new Builder();
@@ -305,9 +291,13 @@ public class CDAClient {
 
     Call.Factory callFactory;
     boolean preview;
+    boolean useTLS12;
 
     /**
      * Sets the space ID.
+     *
+     * @param space the space id to be set.
+     * @return this builder for chaining.
      */
     public Builder setSpace(String space) {
       this.space = space;
@@ -316,6 +306,9 @@ public class CDAClient {
 
     /**
      * Sets the space access token.
+     *
+     * @param token the access token, sometimes called authorization token.
+     * @return this builder for chaining.
      */
     public Builder setToken(String token) {
       this.token = token;
@@ -324,6 +317,9 @@ public class CDAClient {
 
     /**
      * Sets a custom endpoint.
+     *
+     * @param endpoint the url to be calling to (i.e. https://cdn.contentful.com).
+     * @return this builder for chaining.
      */
     public Builder setEndpoint(String endpoint) {
       this.endpoint = endpoint;
@@ -332,8 +328,11 @@ public class CDAClient {
 
     /**
      * Sets a custom logger level.
-     * <p>
+     *
      * If set to {@link Logger.Level}.NONE any custom logger will get ignored.
+     *
+     * @param logLevel the amount/level of logging to be used.
+     * @return this builder for chaining.
      */
     public Builder setLogLevel(Logger.Level logLevel) {
       this.logLevel = logLevel;
@@ -342,6 +341,9 @@ public class CDAClient {
 
     /**
      * Sets a custom logger.
+     *
+     * @param logger the logger to be set.
+     * @return this builder for chaining.
      */
     public Builder setLogger(Logger logger) {
       this.logger = logger;
@@ -350,6 +352,8 @@ public class CDAClient {
 
     /**
      * Sets the endpoint to point the Preview API.
+     *
+     * @return this builder for chaining.
      */
     public Builder preview() {
       preview = true;
@@ -358,9 +362,91 @@ public class CDAClient {
 
     /**
      * Sets a custom HTTP call factory.
+     * @param callFactory the factory to be used to create a call.
+     * @return this builder for chaining.
      */
     public Builder setCallFactory(Call.Factory callFactory) {
       this.callFactory = callFactory;
+      return this;
+    }
+
+    private Call.Factory createOrGetCallFactory(Builder clientBuilder) {
+      final Call.Factory callFactory;
+
+      if (clientBuilder.callFactory == null) {
+        callFactory = defaultCallFactoryBuilder().build();
+      } else {
+        callFactory = clientBuilder.callFactory;
+      }
+
+      return callFactory;
+    }
+
+    private OkHttpClient.Builder setLogger(OkHttpClient.Builder okBuilder) {
+      if (logger != null) {
+        switch (logLevel) {
+          case NONE:
+            break;
+          case BASIC:
+            return okBuilder.addInterceptor(new LogInterceptor(logger));
+          case FULL:
+            return okBuilder.addNetworkInterceptor(new LogInterceptor(logger));
+        }
+      } else {
+        if (logLevel != Logger.Level.NONE) {
+          throw new IllegalArgumentException("Cannot log to a null logger. Please set either logLevel to None, or do set a Logger");
+        }
+      }
+      return okBuilder;
+    }
+
+    private OkHttpClient.Builder useTLS12IfWanted(OkHttpClient.Builder okBuilder) {
+      if (useTLS12) {
+        try {
+          okBuilder.sslSocketFactory(new TLSSocketFactory());
+        } catch (Exception e) {
+          throw new IllegalArgumentException("Cannot create TLSSocketFactory for TLS 1.2", e);
+        }
+      }
+
+      return okBuilder;
+    }
+
+    /**
+     * Returns the default Call.Factory.Builder used throughout this SDK.
+     * <p>
+     * Please use this method last in the building step, since changing settings as in the
+     * {@link #token} or others afterwards will not be reflected by this factory.
+     * <p>
+     * This might be useful if you want to augment the default client, without needing to rely on
+     * replicating the current sdk behaviour.
+     *
+     * @return A {@link Call.Factory} used through out SDK, as if no custom call factory was used.
+     */
+    public OkHttpClient.Builder defaultCallFactoryBuilder() {
+      OkHttpClient.Builder okBuilder = new OkHttpClient.Builder()
+          .addInterceptor(new AuthorizationHeaderInterceptor(token))
+          .addInterceptor(new UserAgentHeaderInterceptor(createUserAgent()))
+          .addInterceptor(new ErrorInterceptor());
+
+      setLogger(okBuilder);
+      useTLS12IfWanted(okBuilder);
+
+      return okBuilder;
+    }
+
+    /**
+     * Sets the flag of enforcing TLS 1.2.
+     * 
+     * If this is not used, TLS 1.2 may not be used per default on all
+     * configurations. 
+     *
+     * @return this builder for chaining.
+     *
+     * @see <a href="https://developer.android.com/reference/javax/net/ssl/SSLSocket.html">reference</a>
+     */
+    public Builder useTLS12() {
+      this.useTLS12 = true;
       return this;
     }
 
