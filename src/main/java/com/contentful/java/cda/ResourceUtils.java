@@ -8,10 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.reactivex.Observable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Predicate;
 import retrofit2.Response;
-import rx.Observable;
-import rx.functions.Action1;
-import rx.functions.Func1;
 
 import static com.contentful.java.cda.CDAType.ASSET;
 import static com.contentful.java.cda.CDAType.DELETEDASSET;
@@ -50,8 +50,7 @@ final class ResourceUtils {
 
     Response<SynchronizedSpace> synchronizedSpace =
         client.service.sync(client.spaceId, null, queryParam(nextPageUrl, "sync_token"))
-            .toBlocking()
-            .first();
+            .blockingFirst();
 
     return synchronizedSpace.body();
   }
@@ -76,7 +75,7 @@ final class ResourceUtils {
     }
 
     String id = extractNested(entry.attrs(), "contentType", "sys", "id");
-    contentType = client.cacheTypeWithId(id).toBlocking().first();
+    contentType = client.cacheTypeWithId(id).blockingFirst();
     if (contentType == null) {
       throw new RuntimeException(
           String.format("Entry '%s' has non-existing content type mapping '%s'.",
@@ -191,15 +190,15 @@ final class ResourceUtils {
       entries = new HashSet<String>(space.deletedEntries);
     }
 
-    Observable.from(space.items())
-        .filter(new Func1<CDAResource, Boolean>() {
-          @Override public Boolean call(CDAResource resource) {
+    Observable.fromIterable(space.items())
+        .filter(new Predicate<CDAResource>() {
+          @Override public boolean test(CDAResource resource) {
             CDAType type = resource.type();
             return DELETEDASSET.equals(type) || DELETEDENTRY.equals(type);
           }
         })
-        .subscribe(new Action1<CDAResource>() {
-          @Override public void call(CDAResource resource) {
+        .subscribe(new Consumer<CDAResource>() {
+          @Override public void accept(CDAResource resource) {
             if (DELETEDASSET.equals(resource.type())) {
               assets.add(resource.id());
             } else {

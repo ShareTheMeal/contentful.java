@@ -8,7 +8,7 @@ import org.junit.Test;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
-import rx.functions.Action1;
+import io.reactivex.functions.Consumer;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -26,8 +26,8 @@ public class EntryTest extends BaseTest {
     final CountDownLatch latch = new CountDownLatch(1);
     assertThat(client.observe(CDAEntry.class)
         .one("foo")
-        .subscribe(new Action1<CDAEntry>() {
-          @Override public void call(CDAEntry entry) {
+        .subscribe(new Consumer<CDAEntry>() {
+          @Override public void accept(CDAEntry entry) {
             result[0] = entry;
             latch.countDown();
           }

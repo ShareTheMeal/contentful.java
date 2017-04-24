@@ -111,10 +111,10 @@ public class Integration {
 
   @Test
   public void sync() throws Exception {
-    SynchronizedSpace space = client.sync().observe().toBlocking().first();
+    SynchronizedSpace space = client.sync().observe().blockingFirst();
     assertInitial(space);
 
-    space = client.sync(space).observe().toBlocking().first();
+    space = client.sync(space).observe().blockingFirst();
 
     assertThat(space.nextSyncUrl()).isNotEmpty();
     assertThat(space.items()).hasSize(14);

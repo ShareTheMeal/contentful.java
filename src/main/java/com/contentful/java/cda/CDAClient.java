@@ -11,14 +11,15 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 
+import io.reactivex.Observable;
+import io.reactivex.ObservableSource;
+import io.reactivex.functions.Function;
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import retrofit2.Response;
 import retrofit2.Retrofit;
-import retrofit2.adapter.rxjava.RxJavaCallAdapterFactory;
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
-import rx.Observable;
-import rx.functions.Func1;
 
 import static com.contentful.java.cda.Constants.ENDPOINT_PROD;
 import static com.contentful.java.cda.Constants.PATH_CONTENT_TYPES;
@@ -75,7 +76,7 @@ public class CDAClient {
 
     Retrofit.Builder retrofitBuilder = new Retrofit.Builder()
         .addConverterFactory(GsonConverterFactory.create(ResourceFactory.GSON))
-        .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
+        .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
         .callFactory(clientBuilder.createOrGetCallFactory(clientBuilder))
         .baseUrl(endpoint);
 
@@ -160,7 +161,7 @@ public class CDAClient {
    * @return the space for this client (synchronously).
    */
   public CDASpace fetchSpace() {
-    return observeSpace().toBlocking().first();
+    return observeSpace().blockingFirst();
   }
 
   /**
@@ -187,13 +188,13 @@ public class CDAClient {
    */
   Observable<Cache> cacheAll(final boolean invalidate) {
     return cacheSpace(invalidate)
-        .flatMap(new Func1<CDASpace, Observable<Map<String, CDAContentType>>>() {
-          @Override public Observable<Map<String, CDAContentType>> call(CDASpace cdaSpace) {
+        .flatMap(new Function<CDASpace, ObservableSource<Map<String, CDAContentType>>>() {
+          @Override public Observable<Map<String, CDAContentType>> apply(CDASpace cdaSpace) {
             return cacheTypes(invalidate);
           }
         })
-        .map(new Func1<Map<String, CDAContentType>, Cache>() {
-          @Override public Cache call(Map<String, CDAContentType> stringCDAContentTypeMap) {
+        .map(new Function<Map<String, CDAContentType>, Cache>() {
+          @Override public Cache apply(Map<String, CDAContentType> stringCDAContentTypeMap) {
             return cache;
           }
         });
@@ -202,8 +203,8 @@ public class CDAClient {
   Observable<CDASpace> cacheSpace(boolean invalidate) {
     CDASpace space = invalidate ? null : cache.space();
     if (space == null) {
-      return service.space(spaceId).map(new Func1<Response<CDASpace>, CDASpace>() {
-        @Override public CDASpace call(Response<CDASpace> response) {
+      return service.space(spaceId).map(new Function<Response<CDASpace>, CDASpace>() {
+        @Override public CDASpace apply(Response<CDASpace> response) {
           CDASpace space = ResourceFactory.space(response);
           cache.setSpace(space);
           return space;
@@ -217,8 +218,8 @@ public class CDAClient {
     Map<String, CDAContentType> types = invalidate ? null : cache.types();
     if (types == null) {
       return service.array(spaceId, PATH_CONTENT_TYPES, new HashMap<String, String>()).map(
-          new Func1<Response<CDAArray>, Map<String, CDAContentType>>() {
-            @Override public Map<String, CDAContentType> call(Response<CDAArray> arrayResponse) {
+          new Function<Response<CDAArray>, Map<String, CDAContentType>>() {
+            @Override public Map<String, CDAContentType> apply(Response<CDAArray> arrayResponse) {
               CDAArray array = ResourceFactory.array(arrayResponse, CDAClient.this);
               Map<String, CDAContentType> tmp = new ConcurrentHashMap<String, CDAContentType>();
               for (CDAResource resource : array.items()) {
@@ -235,8 +236,8 @@ public class CDAClient {
   Observable<CDAContentType> cacheTypeWithId(String id) {
     CDAContentType contentType = cache.types().get(id);
     if (contentType == null) {
-      return observe(CDAContentType.class).one(id).map(new Func1<CDAContentType, CDAContentType>() {
-        @Override public CDAContentType call(CDAContentType resource) {
+      return observe(CDAContentType.class).one(id).map(new Function<CDAContentType, CDAContentType>() {
+        @Override public CDAContentType apply(CDAContentType resource) {
           if (resource != null) {
             cache.types().put(resource.id(), resource);
           }

@@ -20,7 +20,7 @@ public class FetchQuery<T extends CDAResource> extends AbsQuery<T, FetchQuery<T>
    * @return result resource, null if it does not exist.
    */
   public T one(String id) {
-    return baseQuery().one(id).toBlocking().first();
+    return baseQuery().one(id).blockingFirst();
   }
 
   /**
@@ -40,7 +40,7 @@ public class FetchQuery<T extends CDAResource> extends AbsQuery<T, FetchQuery<T>
    * @return {@link CDAArray} result.
    */
   public CDAArray all() {
-    return baseQuery().all().toBlocking().first();
+    return baseQuery().all().blockingFirst();
   }
 
   /**

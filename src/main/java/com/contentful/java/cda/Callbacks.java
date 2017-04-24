@@ -1,9 +1,9 @@
 package com.contentful.java.cda;
 
-import rx.Observable;
-import rx.functions.Action1;
-import rx.observables.ConnectableObservable;
-import rx.schedulers.Schedulers;
+import io.reactivex.Observable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.observables.ConnectableObservable;
+import io.reactivex.schedulers.Schedulers;
 
 final class Callbacks {
   private Callbacks() {
@@ -14,7 +14,7 @@ final class Callbacks {
       Observable<O> observable, CDACallback<C> callback, CDAClient client) {
     ConnectableObservable<O> connectable = observable.observeOn(Schedulers.io()).publish();
 
-    callback.setSubscription(connectable.subscribe(
+    callback.setDisposable(connectable.subscribe(
         new SuccessAction<O>(callback, client),
         new FailureAction(callback, client)));
     
@@ -22,7 +22,7 @@ final class Callbacks {
     return callback;
   }
 
-  static abstract class BaseAction<E> implements Action1<E> {
+  static abstract class BaseAction<E> implements Consumer<E> {
     protected final CDACallback<? extends CDAResource> callback;
 
     protected final CDAClient client;
@@ -32,7 +32,7 @@ final class Callbacks {
       this.client = client;
     }
 
-    @Override public void call(E e) {
+    @Override public void accept(E e) {
       if (!callback.isCancelled()) {
         doCall(e);
       }
