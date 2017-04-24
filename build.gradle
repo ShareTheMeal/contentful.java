@@ -1,0 +1,99 @@
+ext {
+    app_version_code = 1
+    app_version_name = "7.5.1 - SNAPSHOT"
+
+    min_sdk = 16
+    compile_sdk = 25
+    target_sdk = 23
+
+    build_tools_version = '25.0.2'
+
+    okhttp_version = '3.6.0'
+    retrofit_version = '2.2.0'
+    gson_version = '2.7'
+    rxjava_version = '1.2.0'
+
+    commonsio_version = '2.4'
+    junit_version = '4.11'
+    mockito_version = '1.10.19'
+    truth_version = '0.27'
+}
+
+apply plugin: 'com.android.library'
+
+buildscript {
+    repositories {
+        jcenter()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:2.2.3'
+    }
+}
+
+allprojects {
+    repositories {
+        jcenter()
+        mavenCentral()
+        maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
+        maven { url 'https://maven.fabric.io/public' }
+        maven { url "https://jitpack.io" }
+    }
+}
+
+android {
+    compileSdkVersion compile_sdk
+    buildToolsVersion "$build_tools_version"
+
+    defaultConfig {
+        minSdkVersion min_sdk
+        targetSdkVersion target_sdk
+        versionCode app_version_code
+        versionName "$app_version_name"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
+
+    buildTypes {
+        debug {
+            testCoverageEnabled true
+        }
+        release {
+        }
+    }
+
+    lintOptions {
+        disable 'InvalidPackage'
+        abortOnError false
+    }
+
+    dexOptions {
+        javaMaxHeapSize "4g"
+    }
+
+    tasks.withType(Test) {
+        testLogging {
+            showStandardStreams = true
+            events "started", "passed", "skipped", "failed", "standardOut", "standardError"
+        }
+    }
+}
+
+dependencies {
+    compile "com.squareup.retrofit:retrofit:1.9.0"
+    compile "com.squareup.retrofit2:retrofit:$retrofit_version"
+    compile "com.squareup.retrofit2:converter-gson:$retrofit_version"
+    compile "com.squareup.retrofit2:adapter-rxjava:$retrofit_version"
+    compile "io.reactivex:rxjava:$rxjava_version"
+    compile "com.squareup.okhttp3:okhttp:$okhttp_version"
+    compile "com.google.code.gson:gson:$gson_version"
+
+    testCompile "commons-io:commons-io:$commonsio_version"
+    testCompile "junit:junit:$junit_version"
+    testCompile "com.squareup.okhttp3:mockwebserver:$okhttp_version"
+    testCompile "com.google.truth:truth:$truth_version"
+    testCompile "org.mockito:mockito-all:$mockito_version"
+}
