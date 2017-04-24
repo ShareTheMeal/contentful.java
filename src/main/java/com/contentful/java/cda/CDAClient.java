@@ -260,7 +260,7 @@ public class CDAClient {
   static String createUserAgent() {
     final Properties properties = System.getProperties();
     return String.format("contentful.java/%s(%s %s) %s/%s",
-        Util.getProperty("version.name"),
+        com.contentful.java.cda.Properties.VERSION_NAME,
         properties.getProperty("java.runtime.name"),
         properties.getProperty("java.runtime.version"),
         properties.getProperty("os.name"),

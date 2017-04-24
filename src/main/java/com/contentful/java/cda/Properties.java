@@ -14,6 +14,6 @@ public class Properties {
     throw new AssertionError();
   }
 
-  static final String VERSION_NAME = "6.1.3-SNAPSHOT";
+  static final String VERSION_NAME = "7.5.0-SNAPSHOT";
 
 }
